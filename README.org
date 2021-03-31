@@ -1,0 +1,223 @@
+#+TITLE: paradigm
+#+OPTIONS: toc:nil h:1 ^:nil
+
+* Requirements
+All command suggestions below assume a Linux operating system with =makefile= installed.
+
+* Setup a conda environment
+The easiest way to set up all the needed tools is to create an Anaconda environment from the given =environment.yml=. Just type:
+#+BEGIN_SRC shell
+make conda
+#+END_SRC
+
+Then, before running all the commands below make sure you activate the environment
+#+BEGIN_SRC shell
+source activate dicedps
+#+END_SRC
+
+If working with a Modules package, make sure you are in a clean state:
+#+BEGIN_SRC shell
+module purge
+module load anaconda3/4.3.0 cmake/3.8.2 gcc/5.3.1 netcdf/4.4.0 openmpi/1.10.1 openjdk/1.8.0
+export PYTHONPATH=
+#+END_SRC
+
+
+* Install BRICK dependencies
+Type:
+#+BEGIN_SRC shell
+make brick-install
+#+END_SRC
+to install the missing R packages and compile the Fortran submodules needed for BRICK.
+
+* Generate BRICK calibration ensembles
+Create an output directory
+#+BEGIN_SRC shell
+mkdir -p output/brick
+#+END_SRC
+
+Test the BRICK calibration machinery with:
+#+BEGIN_SRC shell
+make brick-calib-cauchy NCHAIN=2 NITER=10000
+#+END_SRC
+
+This should create a file =brick_mcmc_fgiss_TgissOgour_scauchy_t18802011_z18801900_o4_h50_n10000.rds= under =output/brick= containing two Markov chains with 1e4 samples each. 
+
+Change the definition of =LONGRUN= in [[file:makefile_common]] to match your setup for running computationally expensive make targets. In my case I have a bash function =qmake.sh= that creates a =.pbs= file and submit a job to a cluster to make the given target with the required resources.
+
+By default, =NITER= (number of MCMC samples) is 20e6, and =NCHAIN= (number of MCMC parallel chains) is 10. To reduce the resources needed, decrease =NITER= and/or =NCHAIN= in [[file:pkgs/brick/makefile][file:pkgs/brick/makefile]]. Then run from the main directory:
+#+BEGIN_SRC shell
+make brick-calib-all
+#+END_SRC
+
+Diagnostics and the final chains are created with:
+#+BEGIN_SRC shell
+make brick-diag-all
+#+END_SRC
+
+Your output directory should look like this:
+#+BEGIN_EXAMPLE
+output/
+└── [4.0K]  brick
+    ├── [826K]  brick_mcmc_fgiss_TgissOgour_scauchy_t18802011_z18801900_o4_h50_n10000.rds
+    ├── [9.4G]  brick_mcmc_fgiss_TgissOgour_scauchy_t18802011_z18801900_o4_h50_n20000000.rds
+    ├── [ 17M]  brick_mcmc_fgiss_TgissOgour_scauchy_t18802011_z18801900_o4_h50_n20000000_t1000_b5-chains.rds
+    ├── [6.3K]  brick_mcmc_fgiss_TgissOgour_scauchy_t18802011_z18801900_o4_h50_n20000000_t1000_b5-hd.rds
+    ├── [ 16M]  brick_mcmc_fgiss_TgissOgour_scauchy_t18802011_z18801900_o4_h50_n20000000_t1000_b5.nc
+    ├── [832K]  brick_mcmc_fgiss_TgissOgour_schylek_t18802011_z18801900_o4_h50_n10000.rds
+    ├── [9.4G]  brick_mcmc_fgiss_TgissOgour_schylek_t18802011_z18801900_o4_h50_n20000000.rds
+    ├── [ 19M]  brick_mcmc_fgiss_TgissOgour_schylek_t18802011_z18801900_o4_h50_n20000000_t1000_b5-chains.rds
+    ├── [6.3K]  brick_mcmc_fgiss_TgissOgour_schylek_t18802011_z18801900_o4_h50_n20000000_t1000_b5-hd.rds
+    ├── [ 18M]  brick_mcmc_fgiss_TgissOgour_schylek_t18802011_z18801900_o4_h50_n20000000_t1000_b5.nc
+    ├── [829K]  brick_mcmc_fgiss_TgissOgour_spaleosens_t18802011_z18801900_o4_h50_n10000.rds
+    ├── [9.4G]  brick_mcmc_fgiss_TgissOgour_spaleosens_t18802011_z18801900_o4_h50_n20000000.rds
+    ├── [ 15M]  brick_mcmc_fgiss_TgissOgour_spaleosens_t18802011_z18801900_o4_h50_n20000000_t1000_b5-chains.rds
+    ├── [6.4K]  brick_mcmc_fgiss_TgissOgour_spaleosens_t18802011_z18801900_o4_h50_n20000000_t1000_b5-hd.rds
+    └── [ 14M]  brick_mcmc_fgiss_TgissOgour_spaleosens_t18802011_z18801900_o4_h50_n20000000_t1000_b5.nc
+#+END_EXAMPLE
+
+where the =*_t1000_b5{.nc,-chains.rds}= files contain the thinned chains, and the =*-hd.rds= files contain diagnostic information.
+
+Checking the output will give you information on the number of samples remaining.
+* Install BORG
+Make sure you have rights to clone the =serial-borg-moea= repository. Then:
+#+BEGIN_SRC shell
+make borg
+#+END_SRC
+If compilation succeeds, you should have the following files among others:
+#+BEGIN_EXAMPLE
+pkgs/borg/build
+|-- bin
+|   |-- borg
+|   |-- dtlz2_advanced
+|   |-- dtlz2_ms
+|   `-- dtlz2_serial
+`-- lib
+    |-- libborg.so
+    `-- libborgms.so
+#+END_EXAMPLE
+
+Check that both serial and parallel versions work:
+#+BEGIN_SRC shell
+cd pkgs/borg/build/bin
+./dtlz2_serial
+# (make sure last number shown is 0.746296991175737445268)
+mpirun -np 10 ./dtlz2_ms
+# (stop with Ctrl-C and check runtime_0.txt)
+#+END_SRC
+
+* Install Python requirements
+From the Anaconda environment, type:
+#+BEGIN_SRC shell
+pip install -r requirements.txt
+#+END_SRC
+
+Check that the Python bindings with Borg work:
+#+BEGIN_SRC shell
+python pkgs/borg4platypus/examples/simple_borg.py
+#+END_SRC
+* Extrapolate forcings
+Historical forcings data stops at 2011, an automatic ARIMA is used to estimate missing forcings up to 2015.
+#+BEGIN_SRC shell
+make forcings
+#+END_SRC
+* Run optimization
+Create an output dir:
+#+BEGIN_SRC shell
+mkdir output/dicedps
+#+END_SRC
+
+Check that optimization works on a simple instance:
+#+BEGIN_SRC shell
+make opt-test
+#+END_SRC
+
+Then check your cluster setup:
+#+BEGIN_SRC shell
+make opt-mini
+#+END_SRC
+
+If everything works, proceed with the full-scale optimization
+#+BEGIN_SRC shell
+make opt-full
+#+END_SRC
+
+This should give you the following runtime files:
+#+BEGIN_EXAMPLE
+output/dicedps/
+├── u1w1000doeclim_mrbfXdX41_i1p400_nfe5000000_objv2_cnone_s1_seed0001_runtime.csv
+├── u1w1000doeclim_mrbfXdX41_i1p400_nfe5000000_objv2_cnone_s2_seed0002_runtime.csv
+├── u1w1000doeclim_mrbfXdX41_i1p400_nfe5000000_objv2_cnone_s3_seed0003_runtime.csv
+├── u1w1000doeclim_mrbfXdX41_i1p400_nfe5000000_objv2_cnone_s4_seed0004_runtime.csv
+├── u1w1000doeclim_mrbfXdX41_i1p400_nfe5000000_objv2_cnone_s5_seed0005_runtime.csv
+├── u1w1000doeclim_mtime_i1p400_nfe5000000_objv2_cinertmax_s1_seed0001_runtime.csv
+├── u1w1000doeclim_mtime_i1p400_nfe5000000_objv2_cinertmax_s2_seed0002_runtime.csv
+├── u1w1000doeclim_mtime_i1p400_nfe5000000_objv2_cinertmax_s3_seed0003_runtime.csv
+├── u1w1000doeclim_mtime_i1p400_nfe5000000_objv2_cinertmax_s4_seed0004_runtime.csv
+└── u1w1000doeclim_mtime_i1p400_nfe5000000_objv2_cinertmax_s5_seed0005_runtime.csv
+#+END_EXAMPLE
+
+with Borg iterations.
+* Merge Pareto fronts
+We'll use PyPy for speeding things up. Make sure requirements are available.
+#+BEGIN_SRC shell
+pypy3 -m ensurepip
+pypy3 -m pip install tqdm
+#+END_SRC
+
+Check Pareto merging with:
+#+BEGIN_SRC shell
+make par-test
+#+END_SRC
+
+Run the actual merge with:
+#+BEGIN_SRC shell
+make par-merged
+#+END_SRC
+
+This should give you the following merged Pareto files:
+#+BEGIN_EXAMPLE
+output/dicedps/
+├── u1w1000doeclim_mtime_i1p400_nfe5000000_objv2_cinertmax_s0_seed0000_merged.csv
+├── u1w1000doeclim_mrbfXdX41_i1p400_nfe5000000_objv2_cnone_s0_seed0000_merged.csv
+#+END_EXAMPLE
+* Check BORG runtime metrics
+Install MOEAframework and other required tools.
+#+BEGIN_SRC shell
+make met-setup
+#+END_SRC
+
+Check that the setup works
+#+BEGIN_SRC shell
+make met-test
+#+END_SRC
+This should produce a file =output/dicedps/u1w1000doeclim_mtime2_i1p400_nfe5000000_objv2_cnone_s1_seed0001_metrics.csv= with the following metrics table:
+#+BEGIN_EXAMPLE
+#NFE ElapsedTime SBX DE PCX SPX UNDX UM Improvements Restarts +hypervolume
+250000 2148.925116 0.182977 0.000784468 0.81565 0.000196117 0.000196117 0.000196117 34853 0 0.5646850294
+500000 4292.769322 0.0343127 0.000328875 0.96503 0.000109625 0.000109625 0.000109625 62819 0 0.5666289431
+750000 6439.791670 0.0143852 9.04732e-05 0.985253 9.04732e-05 9.04732e-05 9.04732e-05 84237 0 0.5675188842
+[...]
+#+END_EXAMPLE
+
+Run
+#+BEGIN_SRC shell
+make met-all
+#+END_SRC 
+to compute the metrics for all runtime files.
+* Reevaluate Pareto fronts
+Check the rerun script with:
+#+BEGIN_SRC shell
+make rerun-test
+#+END_SRC
+
+Rerun the whole thing with:
+#+BEGIN_SRC shell
+make rerun_v3
+#+END_SRC
+
+* Regenerate manuscript figures
+Run the =fig_*.py= scripts under =pkgs/dicedps/dicedps/plot/=. Make sure to run the =*_data.py= first.
+
+* License
+All the code in this repository, unless specified otherwise, is released under the GNU General Public License v3.

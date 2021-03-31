@@ -1,0 +1,12 @@
+name: dicedps2
+channels:
+  - conda-forge
+dependencies:
+  - python=3.6
+  - pip
+  - pypy3.5
+  - pyqt
+  - ipopt
+  - r-base
+  - r-essentials
+  - r-devtools

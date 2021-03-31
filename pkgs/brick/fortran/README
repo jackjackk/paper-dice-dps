@@ -1,0 +1,54 @@
+================================================================================
+ Copyright 2016 Tony Wong, Alexander Bakker
+ This file is part of BRICK (Building blocks for Relevant Ice and Climate
+ Knowledge). BRICK is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ BRICK is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with BRICK.  If not, see <http://www.gnu.org/licenses/>.
+================================================================================
+
+README file in the /BRICK/fortran/ directory
+
+The dynamic library modules which must be loaded to run the physical models
+coded in Fortran, but called by a wrapper script in R, are  operating system-
+dependent. That is, if you "make" the models on a Mac but try to load and run
+them on a Linux machine (for example) there will be file header errors.
+
+To make the models on your machine:
+
+cd /fortran/
+mkdir obj
+which gfortran
+vi Makefile    # edit if gfortran is different from file
+make
+
+It is possible, depending on your system, that some revisions to the Makefile
+will be needed. Possible troubleshooting tips are below. Please forward any
+issues (hopefully with solutions!) to Tony Wong (twong@psu.edu) so I can keep
+these suggestions current and extensive.
+
+Is your fortran compiler located where the Makefile is looking?
+  - In the command line, enter "which gfortran" (if the Makefile is still using
+    gfortran for compiling). Be sure the first line of the Makefile agrees
+    with the output from "which gfortran"
+
+Have you recently started a new BRICK directory?
+  - If so, your problem may be fixed by removing the old object files and
+    re-making the libraries:
+    rm *.so *.mod
+    rm -r obj/
+    mkdir obj
+    make    
+
+To make a specific model (for example, here we make doeclim.so)
+
+cd /fortran/
+make doeclim.so

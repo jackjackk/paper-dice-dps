@@ -1,0 +1,2 @@
+include LICENSE MANIFEST.in README.org
+recursive-include examples *.py

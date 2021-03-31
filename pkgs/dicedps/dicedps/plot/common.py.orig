@@ -1,0 +1,284 @@
+from collections import namedtuple
+from dicedps.interactive import *
+from glob import glob
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import re
+from matplotlib import ticker
+from os.path import join
+home = os.environ['HOME']
+
+last_oset = 'greg4d'
+
+aplot = lambda dc, x, **kws: pd.Series(getattr(dc._mlist[3], x)[1:,0], index=dc._mlist[3].year[1:]).plot(**kws)
+bplot = lambda dc, x, **kws: pd.DataFrame(np.array(getattr(dc._mlist[3], x)[1:,:]), index=dc._mlist[3].year[1:].tolist()).plot(alpha=0.5,legend=False,**kws)
+bget = lambda dc, x: pd.DataFrame(np.array(getattr(dc._mlist[3], x)[1:,:]), index=dc._mlist[3].year[1:].tolist())
+
+indata = lambda x: glob(incloud(os.path.join('data', x)))
+inplot = lambda x: incloud(os.path.join('plots', x))
+
+prop_cycle = lambda: iter(plt.rcParams['axes.prop_cycle'])
+
+prop_list = list(prop_cycle())
+
+miumap = {
+    'rbfTdT4': 'DPS(T,dT|4)',
+    'rbfTdT6': 'DPS(T,dT|6)',
+    'rbfT4': 'DPS(T|4)',
+    'rbfTdT1': 'DPS(T,dT|1)',
+    'time': 'Open loop',
+}
+
+orel2c = 'Reliability 2C goal (% SOWs)'
+outil = 'Utility loss (% BAU)'
+omit = 'Mitigation cost (% GDP)'
+odam = 'Damage cost (% GDP)'
+olist = [orel2c, outil, omit, odam]
+
+o2best = {
+    orel2c: np.max,
+    outil: np.min,
+    omit: np.min,
+    odam: np.min,
+}
+
+cdps = 'Closed loop'
+cdpstdt4 = 'DPS(T,dT|4)'
+cdpstdt6 = 'DPS(T,dT|6)'
+cdpstdt1 = 'DPS(T,dT|1)'
+cdpst4 = 'DPS(T|4)'
+copen = 'Open loop'
+
+mtime = 'time'
+mdps = 'rbfXdX41'
+m2 = [mtime,mdps]
+
+olist_greg4 = [obj for obj in o.oset2labs['greg4']]
+
+miumap2 = {'m'+x: y for x,y in miumap.items()}
+
+miu_nice_order = ['Open loop', 'DPS(T|4)', 'DPS(T,dT|1)', 'DPS(T,dT|4)']
+
+filename2miu = lambda f: miumap[os.path.basename(f).split('_')[1].split('.')[0]]
+
+
+def get_flist_miulist(m):
+    #didx = [miulist.tolist().index(m) for m in ]
+    return flist, miulist
+
+# BRICK
+
+lcs = 'Climate Sensitivity'
+lod = 'Ocean diffusivity'
+las = 'Aerosol scaling'
+
+inbrickdir = lambda *x: os.path.join(os.environ['HOME'], 'working', 'brick', *x)
+
+
+#dice_greg4b = lambda x: h.args2dice('-c doeclim -u 1 -w 10 -e 2250 -s 1 -o greg4b -C brick_fgiss_Tgiss_slognorm_o4 -t -r 4 -S 3 '+x)
+dice_greg4b100 = lambda miu, *x: h.args2dice('-c doeclim -u 1 -w 100 -e 2250 -s 1 -o greg4b -C brick_fgiss_Tgiss_slognorm_o4 -t -S 3 '+q.miu2arg(miu)+' '.join(x))
+dice_greg4b = lambda miu, n, *x: h.args2dice(f'-c doeclim -u 1 -w {n} -e 2250 -s 1 -o greg4b -C brick_fgiss_Tgiss_slognorm_o4 -t -S 3 '+q.miu2arg(miu)+' '.join(x))
+<<<<<<< Updated upstream
+dice_last = lambda miu, n, *x: h.args2dice(f'-c doeclim -u 1 -w {n} -e 2250 -s 1 -o greg4e -C brick_fgiss_Tgiss_slognorm_o4 -t -S 3 '+q.miu2arg(miu)+' '.join(x))
+=======
+dice_greg4d = lambda miu, n, *x: h.args2dice(f'-c doeclim -u 1 -w {n} -e 2250 -s 1 -o greg4d -C brick_fgiss_Tgiss_slognorm_o4 -t -S 3 '+q.miu2arg(miu)+' '.join(x))
+>>>>>>> Stashed changes
+
+var2lab = {
+    'TATM': 'Temperature (K)',
+    'MIU': 'Abatement (1=100%)',
+    't2co': 'Climate sensitivity (K)',
+}
+
+var2ylim = {
+    'TATM': [0,5],
+    'MIU': [0,1.3],
+}
+
+miu2lab = {
+'rbfXdX04': 'Adaptive vanilla',
+'rbfXdX44': 'Adaptive',
+'rbfXdX41': 'Adaptive',
+'time': 'Non-adaptive',
+}
+
+
+Sim2plot = namedtuple('Sim2plot', ['dc', 'miu', 'cmap', 'colors', 'get', 'norm'])
+
+
+def get_sim2plot(miu, nsow=100):
+    miu1 = miu
+<<<<<<< Updated upstream
+    dc = dice_last(miu1, nsow)
+=======
+    dc = dice_greg4d(miu1, nsow)
+>>>>>>> Stashed changes
+    #css1k = dc.t2co.sort_values()
+    #css = css1k.iloc[::10]
+    css = dc.t2co
+    isorted = css.index
+    norm = mpl.colors.Normalize(vmin=css.iloc[0], vmax=css.iloc[-1])
+    cmap = mpl.cm.cool
+    colors = cmap(scaler.fit_transform(css.values.reshape(-1, 1), css).flatten())
+    get = lambda x: getattr(dc, x).loc[:2200][isorted]
+    return Sim2plot(dc=dc,
+                    miu=miu,
+                    cmap=cmap, norm=norm,
+                    get=get,
+                    colors=colors)
+
+
+def plot_var_cmap(sim, amiu, yy=['MIU','TATM'], axs=None):
+    if isinstance(amiu, pd.DataFrame):
+        if len(amiu) > 1:
+            amiu = amiu.loc[sim.miu]
+            assert len(amiu) == 1
+        amiu = amiu.iloc[0]
+        amiu = amiu[v.get_xcols(amiu)].dropna().values
+    print(amiu)
+    objs = sim.dc.run_and_ret_objs(amiu)
+    if isinstance(yy, str):
+        yy=[yy]
+    if axs is None:
+        fig, axs = plt.subplots(len(yy), 1, figsize=(3, 2*len(yy)), sharex=True)
+    if isinstance(axs, mpl.axes.Axes):
+        axs = [axs]
+    for i, (ax, y) in enumerate(zip(axs, yy)):
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        cb = mpl.colorbar.ColorbarBase(ax=cax, cmap=sim.cmap,
+                                       norm=sim.norm,
+                                       orientation='vertical')
+        cb.set_label(var2lab['t2co'], rotation=-90, labelpad=10)
+        sim.get(y).plot(ax=ax, legend=False, color=sim.colors)
+        ax.set_ylabel(var2lab[y])
+        if i==0:
+            try:
+                sannot_temp = f'rel2c:  {objs[o.o_max_rel2c]:.0f}%'
+            except:
+                sannot_temp = f'2cyear:  {objs[o.o_min_mean2degyears]:.1f}'
+            sannot = f'{sannot_temp}\nmitcost:{objs[o.o_min_cbgemitcost]:.2f}%\ndamcost:{objs[o.o_min_cbgedamcost]:.2f}%'
+            #sannot = amiu.name
+            ax.annotate(sannot, xy=(0.99, 0.01), xycoords='axes fraction', size=8, ha='right', va='bottom',
+                        bbox=dict(boxstyle='square,pad=0.3', fc='0.9', alpha=0.5, lw=0))
+        if y=='TATM':
+            ax.axhline(2, ls='--', color='0.5')
+        ax.set_ylim(var2ylim[y])
+    #fig.tight_layout()
+    return v.get_o(pd.Series({o.obj2lab[x]: y if x[:3] == 'MAX' else -y for x,y in objs.items()}))
+
+def oscale(olist):
+    _obounds = {
+        o.o_min_mean2degyears_lab: {'min': -400, 'max':0},
+        o.o_max_rel2c_lab: {'min': 0, 'max': 40},
+        o.o_max_util_bge_lab: {'min': -0.9, 'max': -1.7},
+        o.o_min_cbgemitcost_lab: {'min': 0, 'max': -1.3},
+        o.o_min_cbgedamcost_lab: {'min': 0, 'max': -1.3},
+    }
+    y = np.array([[_obounds[y][w] for y in olist] for w in ['min','max']])
+    scaler.fit(y)
+    return scaler #.transform(x.values.reshape(1,-1))[0]
+
+def xscale(x):
+    return pd.Series(scaler.transform(x.values.reshape(1,-1))[0], index=x.index)
+
+def plot_parallel(avec, ax=None, **kws):
+    nobjs = len(avec)
+    if ax is None:
+        fig, ax = plt.subplots(1,1)
+    ax.plot(np.arange(nobjs), xscale(avec).values, **kws)
+    for i, (x, xn) in enumerate(zip(avec.values, xscale(avec).values)):
+        ax.annotate(s=f'{x:.1f}',xy=(i,xn),va='bottom',ha='center')
+    ax.set_xticks(range(nobjs))
+    ax2 = ax.twiny()
+    ax.set_xlim([-0.1, nobjs-1+0.1])
+    ax.set_ylim([0, 1])
+    ax2.set_xlim(ax.get_xlim())
+    ax2.set_xticks(range(nobjs))
+    xtickgen = lambda vec: [f'{x:.1f}' for i, x in enumerate(vec)]
+    ax2.set_xticklabels(xtickgen(scaler.data_max_))
+    xticklabs = []
+    for i, (s, x) in enumerate(zip(avec.index, xtickgen(scaler.data_min_))):
+        if i%2:
+            xticklabs.append(f'{x}\n{o.lab2obj[s]}')
+        else:
+            xticklabs.append(f'{x}\n\n{o.lab2obj[s]}')
+    ax.set_xticklabels(xticklabs)
+    ax.tick_params(left=False)
+    ax.tick_params(labelleft=False)
+
+
+def get_scaled_df(df2scale, df4scaling=None):
+    if df4scaling is None:
+        df = df2scale
+    else:
+        df = pd.concat([df2scale, df4scaling])
+    ocols_cbge = [o.o_min_cbgedamcost_lab,o.o_min_cbgemitcost_lab]
+    mincost = (df[ocols_cbge].min().min())
+    maxcost = (df[ocols_cbge].max().max())
+    df4scaling = df.copy()
+    lastrecord = df4scaling.iloc[-1].copy()
+    for extremecost in [mincost, maxcost]:
+        lastrecord = df4scaling.iloc[-1].copy()
+        for ocol in ocols_cbge:
+            lastrecord[ocol] = extremecost
+        df4scaling = df4scaling.append(lastrecord, ignore_index=True)
+    scaler.fit(df4scaling)
+    ret = df2scale.copy()
+    ret.loc[:,:] = scaler.transform(df2scale.values)
+    return ret, scaler
+
+
+miulist = [mdps, mtime]
+
+os.chdir(join(home, 'working', 'dicedps', 'sandbox'))
+
+inplot = lambda *x: os.path.join(os.environ['HOME'], 'working','paper-dice-dps','meetings','figures',*x)
+
+
+def load_merged(s=last_oset, list_level_drop=['con','nfe'], revert_max_objs=False):
+    df = v.load_pareto(f'*{s}*merged.csv', revert_max_objs=revert_max_objs)
+    if not revert_max_objs:
+        olist = v.get_ocols(df)
+        df[olist] = -df[olist]
+    df.index = df.index.droplevel(list_level_drop)
+    return df
+
+
+def plot_objective_pairs(df, orows=None, ocols=None, axs=None):
+    olist = v.get_ocols(df)
+    if orows is None:
+        orows = olist
+    if ocols is None:
+        ocols = olist
+    if axs is None:
+        fig, axs = plt.subplots(len(orows),len(ocols),figsize=(16,8))
+    if not isinstance(axs, np.ndarray):
+        axs = np.array([[axs]])
+    for miu, p in zip([mdps,mtime], prop_list):
+        dfcurr = df.loc[miu][olist]
+        for i, row_obj in enumerate(orows):
+            for j, col_obj in enumerate(ocols):
+                axs[i,j].scatter(dfcurr[col_obj],dfcurr[row_obj], s=1, label=miu2lab[miu], **p)
+                if miu == mtime:
+                    axs[i,j].scatter(
+                        np.max(dfcurr[col_obj]), #o.obj2fbest[col_obj](dfcurr[col_obj]),
+                        np.max(dfcurr[row_obj]), #o.obj2fbest[row_obj](dfcurr[row_obj]),
+                        marker='D', label=f'ideal', color='k')
+                if j == 0:
+                    axs[i,j].set_ylabel(row_obj)
+                if i == 0:
+                    axs[i,j].set_xlabel(col_obj)
+                if i+j == 0:
+                    axs[i,j].legend()
+                else:
+                    if i==j:
+                        axs[i,j].clear()
+
+
+def get_sol_by_mitcost(df, mitcost, relmax=True, retout=False):
+    y = df[np.isclose(df[o.o_min_cbgemitcost_lab], mitcost, atol=1e-2)].sort_values(o.o_max_rel2c_lab, ascending=(not relmax)).mean()
+    ret = v.get_x(y)
+    if retout:
+        ret = (ret, v.get_o(y))
+    return ret
+

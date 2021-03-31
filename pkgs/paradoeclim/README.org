@@ -1,0 +1,17 @@
+#+TITLE: paradoeclim
+#+OPTIONS: toc:nil h:1 ^:nil
+
+DOECLIM written in the paradigm framework.
+
+* Requirements
+
+- Python 3.6+
+
+* Usage
+Check ~examples/*.py~.
+
+* Limitations
+
+* License
+
+paradoeclim is released under the GNU General Public License v3.

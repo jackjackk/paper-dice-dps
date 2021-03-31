@@ -1,0 +1,17 @@
+#+TITLE: paradigm
+#+OPTIONS: toc:nil h:1 ^:nil
+
+Framework for designing and solving optimization problems.
+
+* Requirements
+
+- Python 3.6+
+
+* Usage
+Check ~examples/*.py~.
+
+* Limitations
+
+* License
+
+paradigm is released under the GNU General Public License v3.

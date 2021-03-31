@@ -1,0 +1,17 @@
+#+TITLE: paradice
+#+OPTIONS: toc:nil h:1 ^:nil
+
+DICE written in the paradigm framework.
+
+* Requirements
+
+- Python 3.6+
+
+* Usage
+Check ~examples/*.py~.
+
+* Limitations
+
+* License
+
+paradice is released under the GNU General Public License v3.

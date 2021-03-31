@@ -1,0 +1,37 @@
+pyarrow
+ipython
+typing
+numpy
+scipy
+matplotlib
+PyQt5
+mpldatacursor
+pandas
+six
+git+https://github.com/jackjackk/PRIM.git#egg=PRIM
+scikit-learn
+seaborn
+SALib
+pydotplus
+git+https://github.com/javadba/mpld3@display_fix
+dill
+PyUtilib
+Pyomo==5.6
+mpi4py
+-e pkgs/paradigm
+-e pkgs/paradice
+-e pkgs/paradoeclim
+-e pkgs/paradicedoeclim
+-e pkgs/dicedps
+-e pkgs/borgpy
+-e pkgs/borg4platypus
+jupyter
+autopep8
+yapf
+black
+flake8
+pmdarima
+pytest
+probscale
+git+https://github.com/Project-Platypus/Rhodium.git@d95bfaa0caf3095cd7bca0960ec17efcd33d7972#egg=Rhodium
+git+https://github.com/Project-Platypus/Platypus.git@723ad6763abff99b4f31305191b754c2c26867b0#egg=Platypus-Opt

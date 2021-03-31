@@ -1,0 +1,177 @@
+# -*- mode: Makefile; -*-
+
+DICEDPS_CONF := -a borgpy -i 1 -c doeclim -u 1 -w 1000 -e 2250 -s 1 -o v2 -C med -t -O output/dicedps
+QSUB_DICE := $(PYTHON) -m dicedps.qsub_dice $(DICEDPS_CONF)
+QSUB_DICE_2M := $(QSUB_DICE) -H 48 -n 2000000 -p 20
+QSUB_DICE_4M := $(QSUB_DICE) -H 48 -n 4000000 -p 200
+QSUB_DICE_5M := $(QSUB_DICE) -H 48 -n 5000000 -p 400
+DICE_TEST := $(PYTHON) -m dicedps.dice_moea -n 10000 -p 96 $(DICEDPS_CONF)
+QSUB_DICE_TEST := $(QSUB_DICE) -H 1 -n 1000 -p 10 $(DICEDPS_CONF)
+MIU_TIME := -m time -r 4 -x inertmax
+MIU_TIME2 := -m time2
+MIU_DPS := -m XdX -r 4 -X 1
+
+opt-test:
+	$(DICE_TEST) $(MIU_DPS) -S 3
+
+opt-mini:
+	$(QSUB_DICE_TEST) $(MIU_DPS) -S 3
+
+opt-full: opt-time2 opt-dps
+
+opt-time: opt-time-s1 opt-time-s25
+
+opt-time2: 
+	for S in {1..5}; do $(QSUB_DICE_5M) $(MIU_TIME2) -S $${S}; done
+
+opt-time-s1:
+	$(QSUB_DICE_5M) $(MIU_TIME) -S 1
+
+opt-time2-s1:
+	$(QSUB_DICE_5M) $(MIU_TIME2) -S 1
+
+opt-time-s25:
+	for S in {2..5}; do $(QSUB_DICE_5M) $(MIU_TIME) -S $${S}; done
+
+opt-dps:
+	for S in {1..5}; do $(QSUB_DICE_5M) $(MIU_DPS) -S $${S}; done
+
+OUTPATH := output/dicedps
+SEEDS := 1 2 3 4 5
+DPS_RUNTIME_FILES := $(foreach X,$(SEEDS),$(OUTPATH)/u1w1000doeclim_mrbfXdX41_i1p400_nfe5000000_objv2_cnone_s$(X)_seed000$(X)_runtime.csv)
+DPS_LAST_FILES := $(subst _runtime,_last,$(DPS_RUNTIME_FILES))
+DPS_MERGED_FILE := $(subst _s1_seed0001_runtime,_s0_seed0000_merged,$(word 1, $(DPS_RUNTIME_FILES)))
+
+TEST_RUNTIME_FILES := $(subst _i1p400_nfe5000000,_i1p10_nfe1000,$(word 3, $(DPS_RUNTIME_FILES)))
+TEST_LAST_FILES := $(subst _runtime,_last,$(TEST_RUNTIME_FILES))
+TEST_MERGED_FILE := $(subst _s3_seed0003_runtime,_s0_seed0000_merged,$(word 1, $(TEST_RUNTIME_FILES)))
+
+TIME_RUNTIME_FILES := $(foreach X,$(SEEDS),$(OUTPATH)/u1w1000doeclim_mtime2_i1p400_nfe5000000_objv2_cnone_s$(X)_seed000$(X)_runtime.csv)
+TIME_LAST_FILES := $(subst _runtime,_last,$(TIME_RUNTIME_FILES))
+TIME_MERGED_FILE := $(subst _s1_seed0001_runtime,_s0_seed0000_merged,$(word 1, $(TIME_RUNTIME_FILES)))
+
+COMMA:= ,
+EMPTY:=
+SPACE:= $(EMPTY) $(EMPTY)
+PYPYPAR := $(PYPY) $(PROJECT_PATH)/pkgs/dicedps/dicedps/utils/pareto.py
+PYPYPAR_OPTIONS_4OBJS_COMMON := -o 3 2 1 0 --delimiter=' ' --blank -c '\#' '//' --reverse-column-indices -e 0.1 0.001 0.001 0.001
+
+par-merged:
+	$(foreach F, $(DPS_MERGED_FILE) $(TIME_MERGED_FILE), $(call LONGRUN,$(F),1,64,1);)
+
+$(DPS_MERGED_FILE): $(DPS_LAST_FILES)
+	$(PYPYPAR) $^ $(PYPYPAR_OPTIONS_4OBJS_COMMON) --output $@
+	echo \# >> $@
+
+$(TIME_MERGED_FILE): $(TIME_LAST_FILES)
+	$(PYPYPAR) $^ $(PYPYPAR_OPTIONS_4OBJS_COMMON) --output $@
+	echo \# >> $@
+
+par-test: $(TEST_MERGED_FILE)
+
+$(TEST_MERGED_FILE): $(TEST_LAST_FILES)
+	$(PYPYPAR) $^ $(PYPYPAR_OPTIONS_4OBJS_COMMON) --output $@
+
+opt-check:
+	ls -alh $(DPS_RUNTIME_FILES)
+
+%_last.csv: %_runtime.csv
+	tac $< | sed -n -e '1,/^\/\/NFE=/p' | tac > $@
+
+DPS_V3_MERGED_FILE := $(subst v2_,v3_,$(DPS_MERGED_FILE))
+TIME_V3_MERGED_FILE := $(subst v2_,v3_,$(TIME_MERGED_FILE))
+
+CLIMATE_LIST := low med high
+DAMFUNC_LIST := 1 2 3
+DPS_V3_RERUN_FILES := $(foreach CLI, $(CLIMATE_LIST), \
+	 $(foreach DF, $(DAMFUNC_LIST), \
+		 $(subst XXX,$(CLI),$(subst _merged,_CXXX_D$(DF)_rerun,$(DPS_V3_MERGED_FILE)))))
+TEST_V3_RERUN_FILES := $(subst _i1p400_nfe5000000,_i1p10_nfe1000,$(word 1, $(DPS_V3_RERUN_FILES)))
+TIME_V3_RERUN_FILES := $(foreach CLI, $(CLIMATE_LIST), \
+	 $(foreach DF, $(DAMFUNC_LIST), \
+		 $(subst XXX,$(CLI),$(subst _merged,_CXXX_D$(DF)_rerun,$(TIME_V3_MERGED_FILE)))))
+V3_RERUN_FILES := $(DPS_V3_RERUN_FILES) $(TIME_V3_RERUN_FILES) 
+
+$(DPS_V3_RERUN_FILES):
+	$(PYTHON) -m dicedps.rerun -I $(DPS_MERGED_FILE) -P $@ -N 20
+
+$(TIME_V3_RERUN_FILES):
+	$(PYTHON) -m dicedps.rerun -I $(TIME_MERGED_FILE) -P $@ -N 20
+
+rerun-test: $(TEST_V3_RERUN_FILES)
+
+$(TEST_V3_RERUN_FILES):
+	$(PYTHON) -m dicedps.rerun -I $(TEST_MERGED_FILE) -P $@ -N 2 -l 10
+
+rerun_v3:
+	$(foreach F, $(V3_RERUN_FILES), $(call LONGRUN,$(F),20,8,1);)
+
+
+# Runtime metrics
+
+## setup
+
+WGET := wget --no-check-certificate --content-disposition
+
+met-setup: MOEAFramework-2.12-Demo.jar pkgs/hypervolume/WFG/wfg2 global.properties
+
+MOEAFramework-2.12-Demo.jar:
+	$(WGET) -O $@ https://github.com/MOEAFramework/MOEAFramework/releases/download/v2.12/$@
+
+global.properties:
+	echo "org.moeaframework.core.indicator.hypervolume = $$(pwd)/pkgs/hypervolume/WFG/wfg2 {2}" > global.properties
+	echo "org.moeaframework.core.indicator.hypervolume_inverted = true" >> global.properties
+
+pkgs/hypervolume/WFG/wfg2: pkgs/hypervolume
+	$(MAKE) -C pkgs/hypervolume/WFG
+
+pkgs/hypervolume:
+	git clone git://github.com/MOEAFramework/Hypervolume.git pkgs/hypervolume
+
+
+## computation
+
+%.iter: 
+%runtime.metrics2: $$(patsubst $$(PC).iter,$$(PC).imetrics2,$$(call runtime2iter_files,$$*))
+	head -n1 $< > $@
+	cat $^ | egrep -v '^#' >> $@
+
+merged_all.csv: $(TIME_MERGED_FILE) $(DPS_MERGED_FILE)
+	$(PYPYPAR) $^ $(PYPYPAR_OPTIONS_4OBJS_COMMON) --output $@
+
+%.obj: %.csv
+	egrep -v '^[/#]' $< | awk -F" " '{print $$(NF-3),$$(NF-2),$$(NF-1),$$NF}' > $@
+
+
+EPSILON := -e 0.1,0.001,0.001,0.001
+METRICS_HYPERVOLUME := +hypervolume
+JAVA_MOEA := java -Dorg.moeaframework.configuration=global.properties -classpath "MOEAFramework-2.12-Demo.jar"
+
+NFES := $(shell echo {25..500..25}0000)
+ITER_FILES := $(foreach N,$(NFES),$(foreach R,$(TIME_RUNTIME_FILES) $(DPS_RUNTIME_FILES),$(subst _runtime.csv,_$(N).iter,$(R))))
+IMETRICS_FILES := $(subst .iter,.imetrics,$(ITER_FILES))
+METRICS_FILES := $(subst _runtime.csv,_metrics.csv,$(TIME_RUNTIME_FILES) $(DPS_RUNTIME_FILES))
+metrics2imetrics_files = $(foreach N,$(NFES),$(1)_$(N).imetrics)
+iter2runtime = $(patsubst %_$(lastword $(subst _, ,$(1))),%_runtime.csv,$(1))
+iter2nfe = $(lastword $(subst _, ,$(1)))
+
+.SECONDEXPANSION:
+
+$(ITER_FILES): %.iter: $$(call iter2runtime,$$*)
+	sed -n '/NFE=$(call iter2nfe,$*)$$/,/#/p' $< > $@
+
+$(IMETRICS_FILES): %.imetrics: %.iter merged_all.obj
+	$(JAVA_MOEA) org.moeaframework.analysis.sensitivity.ExtractData $(EPSILON) -r merged_all.obj -d 4 -i $< -o $@ NFE ElapsedTime SBX DE PCX SPX UNDX UM Improvements Restarts $(METRICS_HYPERVOLUME) | tee $@.log
+	[ -s $@.log ] || rm -v $@.log
+
+$(METRICS_FILES): %_metrics.csv: $$(call metrics2imetrics_files,$$*)
+	head -n1 $< > $@
+	cat $^ | egrep -v '^#' >> $@
+
+met-debug:
+	@echo $(METRIC_FILES)
+
+met-test: output/dicedps/u1w1000doeclim_mtime2_i1p400_nfe5000000_objv2_cnone_s1_seed0001_metrics.csv
+
+met-all:
+	$(foreach F,$(METRICS_FILES),$(call LONGRUN,$(F),1,4,1);)

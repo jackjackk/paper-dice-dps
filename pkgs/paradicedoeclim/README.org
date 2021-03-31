@@ -1,0 +1,17 @@
+#+TITLE: paradicedoeclim
+#+OPTIONS: toc:nil h:1 ^:nil
+
+DICE coupled with DOECLIM in the paradigm framework.
+
+* Requirements
+
+- Python 3.6+
+
+* Usage
+Check ~examples/*.py~.
+
+* Limitations
+
+* License
+
+paradicedoeclim is released under the GNU General Public License v3.

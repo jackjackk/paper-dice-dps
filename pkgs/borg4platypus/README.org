@@ -1,0 +1,60 @@
+#+TITLE: borg4platypus
+#+OPTIONS: toc:nil h:1 ^:nil
+
+Provide an (HACKY & EXPERIMENTAL) Algorithm class in the Platypus framework that runs the C version of BORG under the hood, either serially or in parallel.
+
+* Requirements
+
+- Python 3.6+ (f-strings rock!)
+- [[https://github.com/Project-Platypus/Platypus][Platypus]] installed in development mode, e.g.
+  #+BEGIN_SRC shell
+  git clone git@github.com:Project-Platypus/Platypus.git
+  cd Platypus
+  python -m pip install --user -e .
+  #+END_SRC
+- [[https://github.com/uqfoundation/dill][dill]] installed, e.g.
+  #+BEGIN_SRC shell
+  conda install dill
+  #+END_SRC
+- [[https://bitbucket.org/dmh309/serial-borg-moea][Serial Borg MOEA]] installed via git, e.g.
+  #+BEGIN_SRC shell
+  git clone git@bitbucket.org:dmh309/serial-borg-moea.git
+  #+END_SRC
+- Path of ~borg.py~ in ~PYTHONPATH~, e.g. adding the following in your ~.bash_profile~
+  #+BEGIN_SRC shell
+  export PYTHONPATH="$HOME/tools/borg/plugins/Python:$PYTHONPATH"
+  #+END_SRC
+- Path of compiled BORG libs in ~LD_LIBRARY_PATH~, e.g. adding the following in your ~.bash_profile~
+  #+BEGIN_SRC shell
+  export LD_LIBRARY_PATH="$HOME/tools/borg/build/libs:$LD_LIBRARY_PATH"
+  #+END_SRC
+
+* Installation
+
+- Download and install this package
+  #+BEGIN_SRC shell
+  git clone git@github.com:jackjackk/borg4platypus.git
+  cd borg4platypus
+  python -m pip install --user -e .
+  #+END_SRC
+- Patch the Python wrapper of Serial Borg MOEA to support Python 3.6 & this lib
+  #+BEGIN_SRC shell
+  cd /path/to/serial-borg-moea/repo
+  git am /path/to/borg4platypus/bitbucket-serial-borg-moea.patch
+  #+END_SRC
+- Make sure Borg works (in particular check that environmental variables are set correctly)
+  #+BEGIN_SRC shell
+  cd
+  python -c 'from borg import Configuration;Configuration.initialize()'
+  #+END_SRC
+
+* Usage
+Check ~examples/*.py~. Just use ~ExternalBorgC~ as an ~Algorithm~ class which requires an ~epsilons~ parameter (either single-valued or a list, i.e. one epsilon for each objective) after the ~problem~ argument. Whether a serial or parallel instance is launched depends on the ~mpirun~ argument.
+
+* Limitations
+- Only few options are supported and actually passed through the wrappers.
+- Standard Python evaluators (e.g. for running multiple experiments in parallel in Python) won't work: you will need to use [[https://pypi.python.org/pypi/pathos][pathos]].
+
+* License
+
+borg4platypus is released under the GNU General Public License v3.

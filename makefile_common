@@ -1,0 +1,73 @@
+# -*- mode: makefile -*-
+SHELL := /bin/bash
+PROJECT_PATH := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+
+# Executables
+PYTHON := type python && python
+PYPY := pypy3
+R := Rscript --vanilla
+RSYNC := /usr/bin/rsync -avzP --temp-dir=/tmp --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r
+CRSYNC := $(RSYNC) --checksum
+ERSYNC := $(RSYNC) --exclude-from="$$(git -C . ls-files --exclude-standard -oi > /tmp/excludes; echo /tmp/excludes)"
+
+# Python executable
+#PROJECT_PATH := $(HOME)/working/paper-dice-dps
+
+# Function to launch long jobs. Usage in makefile:
+# $(call LONGRUN,{make-target},{num-of-procs},{memory-per-proc},{num-of-nodes},{other-make-args})
+LONGRUN = sh $(PROJECT_PATH)/misc/scripts/qmake.sh $(1) $(2) $(3) $(4) kzk10_a_g_sc_default "source $(PROJECT_PATH)/misc/scripts/setup_env.sh" $(5)
+
+# Remote path to rsync to/from (e.g. computing cluster)
+REMOTE_PATH := "acid:work/paper-dice-dps-deploy"
+LOCAL_DATA_PATH := archive/data
+
+
+BASENAME := $$(basename $$(pwd))
+RESDIR := results/
+
+
+CLOUDDIR := $${HOME}/CloudStation/psu/projects/dice-dps/data/
+
+
+
+res:
+	$(RSYNC) "acid:$(BASENAME)/results/*n1000000*.nc" $(RESDIR)
+
+
+results:
+	mkdir -p $(HOME)/group/$(BASENAME)
+	rm -fv results
+	ln -s $(HOME)/group/$(BASENAME) results
+
+init: scratch results
+
+sync_all: sync sync_tools
+
+sync_tools:
+	$(ERSYNC) $${HOME}/tools/{moea-framework,borg,borg4platypus,platypus,rhodium,para*} acid:tools/
+
+sync:
+	$(ERSYNC) ./ acid:$(BASENAME)/
+
+init_scratch:
+	mkdir -p $${HOME}/scratch/$(BASENAME)
+	rm -fv scratch
+	ln -s $${HOME}/scratch/$(BASENAME) scratch
+	rm -fv $${HOME}/scratch/$(BASENAME)/makefile
+	ln -s $$(pwd)/makefile_scratch $${HOME}/scratch/$(BASENAME)/makefile
+
+sandbox_as_data:
+	rm -fv sandbox/makefile
+	ln -s $$(pwd)/makefile_data sandbox/makefile
+
+init_data:
+	mkdir -p $${HOME}/group/$(BASENAME)
+	rm -fv data
+	ln -s $${HOME}/group/$(BASENAME) data
+	rm -fv $${HOME}/group/$(BASENAME)/makefile
+	ln -s $$(pwd)/makefile_data $${HOME}/group/$(BASENAME)/makefile
+
+#data:
+#	mkdir -p tmp
+#	$(RSYNC) --partial-dir=tmp "acid:$(BASENAME)/data/{bymiu*.{finalmetrics,ref},*.metrics}" $(CLOUDDIR)
+#	#$(RSYNC) "acid:$(BASENAME)/data/last.nc" ./
